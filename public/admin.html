@@ -45,12 +45,21 @@
       trash: '<svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     };
 
+    // Protege contra inyeccion de HTML (XSS): todo texto que
+    // escribio un usuario se muestra como texto plano
+    function limpiar(texto) {
+      const div = document.createElement("div");
+      div.textContent = texto == null ? "" : String(texto);
+      return div.innerHTML;
+    }
+
     async function cargar() {
       const cont = document.getElementById("contenido");
       cont.innerHTML = '<p class="vacio">Cargando tickets...</p>';
 
       try {
         const res = await fetch("/api/tickets");
+        if (!res.ok) throw new Error("La API respondio con error " + res.status);
         const tickets = await res.json();
 
         if (!tickets.length) {
@@ -70,29 +79,29 @@
 
         for (const t of tickets) {
           const prioridad = t.prioridad
-            ? `<span class="badge ${t.prioridad}">${t.prioridad}</span>`
+            ? `<span class="badge ${limpiar(t.prioridad)}">${limpiar(t.prioridad)}</span>`
             : '<span style="color:var(--texto-suave)">sin clasificar</span>';
 
           const trello = t.trello
-            ? `<div style="margin-top:8px"><a href="${t.trello}" target="_blank">${icons.trello} Ver tarjeta en Trello ${icons.external}</a></div>`
+            ? `<div style="margin-top:8px"><a href="${limpiar(t.trello)}" target="_blank" rel="noopener">${icons.trello} Ver tarjeta en Trello ${icons.external}</a></div>`
             : "";
 
           const respuesta = t.respuesta_automatica
-            ? `<div class="respuesta-ia">${icons.bot} ${t.respuesta_automatica}</div>`
+            ? `<div class="respuesta-ia">${icons.bot} ${limpiar(t.respuesta_automatica)}</div>`
             : "";
 
           html += `<tr>
             <td>
-              <div class="titulo-t">${t.titulo}</div>
-              <div class="desc">${t.descripcion}</div>
-              <div class="desc">${icons.mail} ${t.email}</div>
+              <div class="titulo-t">${limpiar(t.titulo)}</div>
+              <div class="desc">${limpiar(t.descripcion)}</div>
+              <div class="desc">${icons.mail} ${limpiar(t.email)}</div>
               ${respuesta}
               ${trello}
             </td>
             <td>${prioridad}</td>
-            <td>${t.categoria || "—"}</td>
-            <td>${t.equipo || "—"}</td>
-            <td><span class="badge ${t.estado}">${t.estado}</span></td>
+            <td>${limpiar(t.categoria) || "—"}</td>
+            <td>${limpiar(t.equipo) || "—"}</td>
+            <td><span class="badge ${limpiar(t.estado)}">${limpiar(t.estado)}</span></td>
             <td>
               ${t.estado === "abierto"
                 ? `<button class="secundario" onclick="cerrar('${t._id}')">${icons.check} Cerrar</button><div style="height:8px"></div>`
@@ -110,25 +119,15 @@
     }
 
     // ------ Autenticacion simple del panel ------
-    // La clave se pide una sola vez y se guarda mientras la
-    // pestana este abierta (sessionStorage)
-    function claveAdmin(forzar) {
-      let clave = sessionStorage.getItem("adminKey");
-      if (!clave || forzar) {
-        clave = prompt("Clave de administrador:");
-        if (clave) sessionStorage.setItem("adminKey", clave);
-      }
-      return clave;
-    }
-
+    // La clave se pide en CADA accion de administrador.
+    // No se guarda en el navegador.
     async function accionAdmin(url, opciones) {
-      const clave = claveAdmin(false);
-      if (!clave) return alert("Se necesita la clave de administrador.");
+      const clave = prompt("Clave de administrador:");
+      if (!clave) return;
       opciones.headers = Object.assign({}, opciones.headers, { "x-admin-key": clave });
       const res = await fetch(url, opciones);
       if (res.status === 401) {
-        sessionStorage.removeItem("adminKey");
-        alert("Clave incorrecta. Intenta de nuevo.");
+        alert("Clave incorrecta. Accion denegada.");
         return;
       }
       cargar();

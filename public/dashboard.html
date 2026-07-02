@@ -57,6 +57,13 @@
       return conteo;
     }
 
+    // Muestra los nombres como texto plano (proteccion XSS)
+    function limpiar(texto) {
+      const div = document.createElement("div");
+      div.textContent = texto == null ? "" : String(texto);
+      return div.innerHTML;
+    }
+
     function barras(conteo, total, usarColores) {
       const entradas = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
       if (!entradas.length) return '<p class="vacio">Sin datos todavía</p>';
@@ -65,7 +72,7 @@
         const pct = Math.round((cantidad / total) * 100);
         const clase = usarColores && coloresPrioridad.includes(nombre) ? nombre : "";
         html += `<div class="barra-fila">
-          <span class="nombre">${nombre}</span>
+          <span class="nombre">${limpiar(nombre)}</span>
           <div class="barra-fondo"><div class="barra-relleno ${clase}" style="width:${pct}%"></div></div>
           <span>${cantidad}</span>
         </div>`;
@@ -76,6 +83,7 @@
     async function cargar() {
       try {
         const res = await fetch("/api/tickets");
+        if (!res.ok) throw new Error("La API respondio con error " + res.status);
         const tickets = await res.json();
 
         const abiertos = tickets.filter((t) => t.estado === "abierto").length;
