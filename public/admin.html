@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help Desk Inteligente | Panel de agentes</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav>
+    <span class="logo">⛅ Help Desk Inteligente</span>
+    <a href="index.html">Crear ticket</a>
+    <a href="admin.html" class="activo">Panel de agentes</a>
+    <a href="dashboard.html">Dashboard</a>
+  </nav>
+
+  <main>
+    <h1>Panel de agentes</h1>
+    <p class="subtitulo">Todos los tickets guardados en MongoDB Atlas, clasificados por el agente de IA.</p>
+
+    <div class="panel">
+      <button class="secundario" onclick="cargar()">🔄 Actualizar</button>
+      <div id="contenido"><p class="vacio">Cargando tickets...</p></div>
+    </div>
+  </main>
+
+  <script>
+    async function cargar() {
+      const cont = document.getElementById("contenido");
+      cont.innerHTML = '<p class="vacio">Cargando tickets...</p>';
+
+      try {
+        const res = await fetch("/api/tickets");
+        const tickets = await res.json();
+
+        if (!tickets.length) {
+          cont.innerHTML = '<p class="vacio">Todavía no hay tickets. Crea el primero desde la página principal.</p>';
+          return;
+        }
+
+        let html = `<table>
+          <tr>
+            <th>Ticket</th>
+            <th>Prioridad IA</th>
+            <th>Categoría</th>
+            <th>Equipo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>`;
+
+        for (const t of tickets) {
+          const prioridad = t.prioridad
+            ? `<span class="badge ${t.prioridad}">${t.prioridad}</span>`
+            : '<span style="color:var(--texto-suave)">sin clasificar</span>';
+
+          const trello = t.trello
+            ? `<br><a href="${t.trello}" target="_blank">📋 Ver en Trello</a>`
+            : "";
+
+          const respuesta = t.respuesta_automatica
+            ? `<div class="desc">🤖 ${t.respuesta_automatica}</div>`
+            : "";
+
+          html += `<tr>
+            <td>
+              <strong>${t.titulo}</strong>
+              <div class="desc">${t.descripcion}</div>
+              <div class="desc">✉️ ${t.email}</div>
+              ${respuesta}
+              ${trello}
+            </td>
+            <td>${prioridad}</td>
+            <td>${t.categoria || "—"}</td>
+            <td>${t.equipo || "—"}</td>
+            <td><span class="badge ${t.estado}">${t.estado}</span></td>
+            <td>
+              ${t.estado === "abierto"
+                ? `<button class="secundario" onclick="cerrar('${t._id}')">✔ Cerrar</button><br><br>`
+                : ""}
+              <button class="peligro" onclick="eliminar('${t._id}')">🗑 Eliminar</button>
+            </td>
+          </tr>`;
+        }
+
+        html += "</table>";
+        cont.innerHTML = html;
+      } catch (e) {
+        cont.innerHTML = `<p class="vacio">Error cargando tickets: ${e.message}</p>`;
+      }
+    }
+
+    async function cerrar(id) {
+      await fetch("/api/tickets/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "cerrado" }),
+      });
+      cargar();
+    }
+
+    async function eliminar(id) {
+      if (!confirm("¿Seguro que quieres eliminar este ticket?")) return;
+      await fetch("/api/tickets/" + id, { method: "DELETE" });
+      cargar();
+    }
+
+    cargar();
+  </script>
+</body>
+</html>
