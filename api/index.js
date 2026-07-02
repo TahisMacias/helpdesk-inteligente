@@ -14,7 +14,7 @@ app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-key");
   if (req.method === "OPTIONS") return res.status(200).end();
   next();
 });
@@ -344,9 +344,21 @@ app.post("/api/tickets", async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------
+// AUTENTICACION SIMPLE
+// Las acciones de administrador (actualizar y eliminar) exigen
+// una clave que viaja en el header x-admin-key
+// ------------------------------------------------------------
+function esAdmin(req) {
+  return req.headers["x-admin-key"] === process.env.ADMIN_KEY;
+}
+
 // Actualizar un ticket (por ejemplo cambiar el estado)
 app.put("/api/tickets/:id", async (req, res) => {
   try {
+    if (!esAdmin(req)) {
+      return res.status(401).json({ error: "Clave de administrador incorrecta" });
+    }
     const db = await getDb();
     const { estado } = req.body;
     await db
@@ -361,6 +373,9 @@ app.put("/api/tickets/:id", async (req, res) => {
 // Eliminar un ticket
 app.delete("/api/tickets/:id", async (req, res) => {
   try {
+    if (!esAdmin(req)) {
+      return res.status(401).json({ error: "Clave de administrador incorrecta" });
+    }
     const db = await getDb();
     await db.collection("tickets").deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ mensaje: "Ticket eliminado" });
@@ -372,6 +387,9 @@ app.delete("/api/tickets/:id", async (req, res) => {
 // Endpoint del agente: volver a clasificar un ticket existente
 app.post("/api/agent/triage", async (req, res) => {
   try {
+    if (!esAdmin(req)) {
+      return res.status(401).json({ error: "Clave de administrador incorrecta" });
+    }
     const { ticket_id } = req.body;
     const db = await getDb();
     const ticket = await db
