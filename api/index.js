@@ -143,6 +143,46 @@ async function crearTarjetaTrello(ticket, clasificacion) {
 }
 
 // ------------------------------------------------------------
+// ENVIO DE CORREOS (Brevo - SaaS de mensajeria)
+// Envia la respuesta del agente o la confirmacion del ticket
+// al correo del usuario
+// ------------------------------------------------------------
+async function enviarCorreo(destinatario, asunto, contenidoHtml) {
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: { name: "Help Desk Inteligente", email: process.env.BREVO_SENDER },
+      to: [{ email: destinatario }],
+      subject: asunto,
+      htmlContent: contenidoHtml,
+    }),
+  });
+
+  if (!res.ok) {
+    const detalle = await res.text();
+    throw new Error("Error de Brevo: " + detalle);
+  }
+  return true;
+}
+
+function plantillaCorreo(titulo, cuerpo) {
+  return `
+  <div style="background:#0d0a14;padding:32px 16px;font-family:Arial,sans-serif">
+    <div style="max-width:560px;margin:0 auto;background:#1a1626;border:1px solid #3a2f5c;border-radius:14px;padding:28px;color:#f1eefb">
+      <h2 style="margin:0 0 6px;color:#a78bfa;font-size:20px">Help Desk Inteligente</h2>
+      <p style="margin:0 0 20px;color:#9d94bd;font-size:13px">Respuesta automatica del sistema</p>
+      <h3 style="margin:0 0 12px;font-size:17px;color:#f1eefb">${titulo}</h3>
+      <div style="font-size:14px;line-height:1.7;color:#d6d0e8">${cuerpo}</div>
+      <p style="margin:24px 0 0;font-size:12px;color:#5e5680">Este correo fue generado automaticamente por el agente de IA del Help Desk. Proyecto Cloud Computing - CENESTUR.</p>
+    </div>
+  </div>`;
+}
+
+// ------------------------------------------------------------
 // RUTAS DE LA API
 // ------------------------------------------------------------
 
@@ -234,6 +274,46 @@ app.post("/api/tickets", async (req, res) => {
         }
       }
 
+      // 5. Enviar correo al usuario con la respuesta o la confirmacion
+      let correoEnviado = false;
+      try {
+        if (cambios.respuesta_automatica) {
+          // El agente resolvio el ticket: se envia la solucion
+          await enviarCorreo(
+            ticket.email,
+            `Respuesta a tu ticket: ${ticket.titulo}`,
+            plantillaCorreo(
+              ticket.titulo,
+              `<p>Hola, nuestro agente de IA analizo tu solicitud y encontro la solucion:</p>
+               <p style="background:#10281f;border-left:3px solid #34d399;padding:12px 14px;border-radius:0 8px 8px 0">${cambios.respuesta_automatica}</p>
+               <p>El ticket quedo cerrado automaticamente. Si el problema continua, puedes crear un nuevo ticket.</p>`
+            )
+          );
+          correoEnviado = true;
+        } else {
+          // Ticket en proceso: se envia la confirmacion con la clasificacion
+          const notaTrello = urlTrello
+            ? `<p>Por su urgencia, el caso fue escalado y un agente lo atendera de inmediato.</p>`
+            : `<p>Un agente del equipo <strong>${clasificacion.equipo}</strong> lo atendera pronto.</p>`;
+          await enviarCorreo(
+            ticket.email,
+            `Ticket recibido: ${ticket.titulo}`,
+            plantillaCorreo(
+              ticket.titulo,
+              `<p>Hola, recibimos tu ticket y nuestro agente de IA ya lo clasifico:</p>
+               <p><strong>Prioridad:</strong> ${clasificacion.prioridad}<br>
+               <strong>Categoria:</strong> ${clasificacion.categoria}<br>
+               <strong>Numero de ticket:</strong> ${ticket._id}</p>
+               ${notaTrello}`
+            )
+          );
+          correoEnviado = true;
+        }
+        cambios.correo_enviado = correoEnviado;
+      } catch (e) {
+        errorAgente = (errorAgente ? errorAgente + " | " : "") + "Correo: " + e.message;
+      }
+
       await db
         .collection("tickets")
         .updateOne({ _id: ticket._id }, { $set: cambios });
@@ -256,6 +336,7 @@ app.post("/api/tickets", async (req, res) => {
       ticket,
       agente: clasificacion,
       trello: urlTrello,
+      correo_enviado: ticket.correo_enviado || false,
       error_agente: errorAgente,
     });
   } catch (e) {
