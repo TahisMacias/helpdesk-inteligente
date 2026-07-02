@@ -79,8 +79,9 @@
       e.preventDefault();
       boton.disabled = true;
       boton.innerHTML = '<span class="spinner"></span> El agente de IA está analizando tu ticket...';
+      // Se oculta usando solo la clase CSS (un estilo directo
+      // tendria prioridad y dejaria el cuadro invisible)
       resultado.className = "";
-      resultado.style.display = "none";
 
       try {
         const res = await fetch("/api/tickets", {
