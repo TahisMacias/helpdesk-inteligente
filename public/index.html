@@ -8,17 +8,21 @@
 </head>
 <body>
   <nav>
-    <span class="logo">⛅ Help Desk Inteligente</span>
+    <span class="logo">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.13A7 7 0 1 0 5 17.89"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+      Help Desk Inteligente
+    </span>
     <a href="index.html" class="activo">Crear ticket</a>
     <a href="admin.html">Panel de agentes</a>
     <a href="dashboard.html">Dashboard</a>
   </nav>
 
   <main>
+    <span class="eyebrow">Agente de IA en línea</span>
     <h1>Crear un ticket de soporte</h1>
     <p class="subtitulo">
-      Describe tu problema. Nuestro agente de IA lo clasificará automáticamente
-      y lo enviará al equipo correcto.
+      Describe tu problema y nuestro agente de IA lo clasificará al instante,
+      lo asignará al equipo correcto y, si puede, te dará la solución de una vez.
     </p>
 
     <div class="panel">
@@ -29,33 +33,52 @@
         <label for="descripcion">Descripción *</label>
         <textarea id="descripcion" placeholder="Cuéntanos qué pasa con el mayor detalle posible..." required></textarea>
 
-        <label for="prioridad">¿Qué tan urgente lo consideras?</label>
-        <select id="prioridad">
-          <option value="baja">Baja</option>
-          <option value="normal" selected>Normal</option>
-          <option value="alta">Alta</option>
-          <option value="urgente">Urgente</option>
-        </select>
+        <div class="grid-2">
+          <div>
+            <label for="prioridad">¿Qué tan urgente lo consideras?</label>
+            <select id="prioridad">
+              <option value="baja">Baja</option>
+              <option value="normal" selected>Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div>
+            <label for="email">Tu correo *</label>
+            <input id="email" type="email" placeholder="tu@correo.com" required />
+          </div>
+        </div>
 
-        <label for="email">Tu correo *</label>
-        <input id="email" type="email" placeholder="tu@correo.com" required />
-
-        <button type="submit" id="boton">🚀 Enviar ticket</button>
+        <button type="submit" id="boton">
+          <svg class="ico" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          Enviar ticket
+        </button>
       </form>
 
       <div id="resultado" class="panel"></div>
     </div>
   </main>
 
+  <footer>Help Desk Inteligente · Proyecto Cloud Computing · CENESTUR 2026</footer>
+
   <script>
+    // Iconos SVG reutilizables
+    const icons = {
+      check: '<svg class="ico ico-lg" viewBox="0 0 24 24" style="stroke:var(--baja)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+      alert: '<svg class="ico ico-lg" viewBox="0 0 24 24" style="stroke:var(--critica)"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+      bot: '<svg class="ico" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+      external: '<svg class="ico" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+    };
+
     const form = document.getElementById("formulario");
     const boton = document.getElementById("boton");
     const resultado = document.getElementById("resultado");
+    const botonHTML = boton.innerHTML;
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       boton.disabled = true;
-      boton.textContent = "🤖 El agente de IA está analizando tu ticket...";
+      boton.innerHTML = '<span class="spinner"></span> El agente de IA está analizando tu ticket...';
       resultado.className = "";
       resultado.style.display = "none";
 
@@ -74,36 +97,36 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Error del servidor");
 
-        let html = "<h3>✅ ¡Ticket creado exitosamente!</h3>";
-        html += `<p><strong>ID:</strong> ${data.ticket._id}</p>`;
+        let html = `<h3>${icons.check} Ticket creado exitosamente</h3>`;
+        html += `<div class="fila-dato"><span class="k">ID del ticket</span><span class="v">${data.ticket._id}</span></div>`;
 
         if (data.agente) {
-          html += `<p><strong>Prioridad asignada por la IA:</strong> <span class="badge ${data.agente.prioridad}">${data.agente.prioridad}</span></p>`;
-          html += `<p><strong>Categoría:</strong> ${data.agente.categoria}</p>`;
-          html += `<p><strong>Equipo asignado:</strong> ${data.agente.equipo}</p>`;
-
-          if (data.agente.es_pregunta_frecuente && data.agente.respuesta_automatica) {
-            html += `<p><strong>🤖 Respuesta automática del agente:</strong><br>${data.agente.respuesta_automatica}</p>`;
-            html += `<p>El ticket se cerró automáticamente porque el agente pudo resolverlo.</p>`;
-          }
+          html += `<div class="fila-dato"><span class="k">Prioridad asignada por la IA</span><span class="v"><span class="badge ${data.agente.prioridad}">${data.agente.prioridad}</span></span></div>`;
+          html += `<div class="fila-dato"><span class="k">Categoría</span><span class="v">${data.agente.categoria}</span></div>`;
+          html += `<div class="fila-dato"><span class="k">Equipo asignado</span><span class="v">${data.agente.equipo}</span></div>`;
 
           if (data.trello) {
-            html += `<p><strong>🚨 Ticket escalado.</strong> Se creó una tarjeta en Trello: <a href="${data.trello}" target="_blank">${data.trello}</a></p>`;
+            html += `<div class="fila-dato"><span class="k">Ticket escalado a Trello</span><span class="v"><a href="${data.trello}" target="_blank">Ver tarjeta ${icons.external}</a></span></div>`;
+          }
+
+          if (data.agente.es_pregunta_frecuente && data.agente.respuesta_automatica) {
+            html += `<div class="nota-ia">${icons.bot} <strong>Respuesta automática del agente:</strong><br>${data.agente.respuesta_automatica}<br><br><em>El ticket se cerró automáticamente porque el agente pudo resolverlo.</em></div>`;
           }
         } else if (data.error_agente) {
-          html += `<p>⚠️ El ticket se guardó pero el agente de IA tuvo un problema: ${data.error_agente}</p>`;
+          html += `<div class="fila-dato"><span class="k">Nota</span><span class="v">El ticket se guardó pero el agente tuvo un problema: ${data.error_agente}</span></div>`;
         }
 
         resultado.innerHTML = html;
         resultado.className = "ok";
         form.reset();
       } catch (err) {
-        resultado.innerHTML = `<h3>❌ Ocurrió un error</h3><p>${err.message}</p>`;
+        resultado.innerHTML = `<h3>${icons.alert} Ocurrió un error</h3><p style="color:var(--texto-suave);font-size:14px">${err.message}</p>`;
         resultado.className = "error";
       }
 
       boton.disabled = false;
-      boton.textContent = "🚀 Enviar ticket";
+      boton.innerHTML = botonHTML;
+      resultado.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   </script>
 </body>

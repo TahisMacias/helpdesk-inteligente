@@ -8,30 +8,46 @@
 </head>
 <body>
   <nav>
-    <span class="logo">⛅ Help Desk Inteligente</span>
+    <span class="logo">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.13A7 7 0 1 0 5 17.89"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+      Help Desk Inteligente
+    </span>
     <a href="index.html">Crear ticket</a>
     <a href="admin.html">Panel de agentes</a>
     <a href="dashboard.html" class="activo">Dashboard</a>
   </nav>
 
   <main>
-    <h1>Dashboard de métricas</h1>
-    <p class="subtitulo">Resumen en tiempo real de los tickets del sistema.</p>
+    <span class="eyebrow">Métricas en tiempo real</span>
+    <h1>Dashboard del Help Desk</h1>
+    <p class="subtitulo">Resumen de todos los tickets del sistema, actualizado directamente desde MongoDB Atlas.</p>
 
     <div class="metricas" id="metricas"></div>
 
     <div class="panel">
-      <h3 style="margin-bottom:14px">Tickets por prioridad</h3>
+      <h3 style="margin-bottom:16px">Tickets por prioridad</h3>
       <div id="porPrioridad"><p class="vacio">Cargando...</p></div>
     </div>
 
     <div class="panel">
-      <h3 style="margin-bottom:14px">Tickets por categoría</h3>
+      <h3 style="margin-bottom:16px">Tickets por categoría</h3>
       <div id="porCategoria"><p class="vacio">Cargando...</p></div>
     </div>
   </main>
 
+  <footer>Help Desk Inteligente · Proyecto Cloud Computing · CENESTUR 2026</footer>
+
   <script>
+    const coloresPrioridad = ["critica", "alta", "media", "baja"];
+
+    const iconMetrica = {
+      total: '<svg class="ico" viewBox="0 0 24 24" style="stroke:var(--acento)"><path d="M13 5H2v14h20V5h-3"/><path d="M13 5a2 2 0 1 0-4 0v0"/><path d="M6 9h12"/><path d="M6 13h8"/></svg>',
+      abiertos: '<svg class="ico" viewBox="0 0 24 24" style="stroke:var(--media)"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+      cerrados: '<svg class="ico" viewBox="0 0 24 24" style="stroke:var(--baja)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+      escalados: '<svg class="ico" viewBox="0 0 24 24" style="stroke:var(--critica)"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+      ia: '<svg class="ico" viewBox="0 0 24 24" style="stroke:var(--acento)"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+    };
+
     function contar(lista, campo) {
       const conteo = {};
       for (const item of lista) {
@@ -41,15 +57,16 @@
       return conteo;
     }
 
-    function barras(conteo, total) {
+    function barras(conteo, total, usarColores) {
       const entradas = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
       if (!entradas.length) return '<p class="vacio">Sin datos todavía</p>';
       let html = "";
       for (const [nombre, cantidad] of entradas) {
         const pct = Math.round((cantidad / total) * 100);
+        const clase = usarColores && coloresPrioridad.includes(nombre) ? nombre : "";
         html += `<div class="barra-fila">
           <span class="nombre">${nombre}</span>
-          <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%"></div></div>
+          <div class="barra-fondo"><div class="barra-relleno ${clase}" style="width:${pct}%"></div></div>
           <span>${cantidad}</span>
         </div>`;
       }
@@ -67,20 +84,22 @@
         const automaticos = tickets.filter((t) => t.respuesta_automatica).length;
 
         document.getElementById("metricas").innerHTML = `
-          <div class="metrica"><div class="numero">${tickets.length}</div><div class="etiqueta">Tickets totales</div></div>
-          <div class="metrica"><div class="numero">${abiertos}</div><div class="etiqueta">Abiertos</div></div>
-          <div class="metrica"><div class="numero">${cerrados}</div><div class="etiqueta">Cerrados</div></div>
-          <div class="metrica"><div class="numero">${escalados}</div><div class="etiqueta">Escalados a Trello</div></div>
-          <div class="metrica"><div class="numero">${automaticos}</div><div class="etiqueta">Resueltos por la IA</div></div>
+          <div class="metrica"><div class="numero">${tickets.length}</div><div class="etiqueta">${iconMetrica.total} Tickets totales</div></div>
+          <div class="metrica"><div class="numero">${abiertos}</div><div class="etiqueta">${iconMetrica.abiertos} Abiertos</div></div>
+          <div class="metrica"><div class="numero">${cerrados}</div><div class="etiqueta">${iconMetrica.cerrados} Cerrados</div></div>
+          <div class="metrica"><div class="numero">${escalados}</div><div class="etiqueta">${iconMetrica.escalados} Escalados a Trello</div></div>
+          <div class="metrica"><div class="numero">${automaticos}</div><div class="etiqueta">${iconMetrica.ia} Resueltos por la IA</div></div>
         `;
 
         document.getElementById("porPrioridad").innerHTML = barras(
           contar(tickets, "prioridad"),
-          tickets.length || 1
+          tickets.length || 1,
+          true
         );
         document.getElementById("porCategoria").innerHTML = barras(
           contar(tickets, "categoria"),
-          tickets.length || 1
+          tickets.length || 1,
+          false
         );
       } catch (e) {
         document.getElementById("porPrioridad").innerHTML =
