@@ -109,6 +109,10 @@
             html += `<div class="fila-dato"><span class="k">Ticket escalado a Trello</span><span class="v"><a href="${data.trello}" target="_blank">Ver tarjeta ${icons.external}</a></span></div>`;
           }
 
+          if (data.correo_enviado) {
+            html += `<div class="fila-dato"><span class="k">Notificación por correo</span><span class="v" style="color:var(--baja)">Enviada a tu email</span></div>`;
+          }
+
           if (data.agente.es_pregunta_frecuente && data.agente.respuesta_automatica) {
             html += `<div class="nota-ia">${icons.bot} <strong>Respuesta automática del agente:</strong><br>${data.agente.respuesta_automatica}<br><br><em>El ticket se cerró automáticamente porque el agente pudo resolverlo.</em></div>`;
           }
