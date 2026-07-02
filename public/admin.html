@@ -109,19 +109,42 @@
       }
     }
 
+    // ------ Autenticacion simple del panel ------
+    // La clave se pide una sola vez y se guarda mientras la
+    // pestana este abierta (sessionStorage)
+    function claveAdmin(forzar) {
+      let clave = sessionStorage.getItem("adminKey");
+      if (!clave || forzar) {
+        clave = prompt("Clave de administrador:");
+        if (clave) sessionStorage.setItem("adminKey", clave);
+      }
+      return clave;
+    }
+
+    async function accionAdmin(url, opciones) {
+      const clave = claveAdmin(false);
+      if (!clave) return alert("Se necesita la clave de administrador.");
+      opciones.headers = Object.assign({}, opciones.headers, { "x-admin-key": clave });
+      const res = await fetch(url, opciones);
+      if (res.status === 401) {
+        sessionStorage.removeItem("adminKey");
+        alert("Clave incorrecta. Intenta de nuevo.");
+        return;
+      }
+      cargar();
+    }
+
     async function cerrar(id) {
-      await fetch("/api/tickets/" + id, {
+      await accionAdmin("/api/tickets/" + id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: "cerrado" }),
       });
-      cargar();
     }
 
     async function eliminar(id) {
       if (!confirm("¿Seguro que quieres eliminar este ticket?")) return;
-      await fetch("/api/tickets/" + id, { method: "DELETE" });
-      cargar();
+      await accionAdmin("/api/tickets/" + id, { method: "DELETE" });
     }
 
     cargar();
