@@ -209,6 +209,9 @@ app.get("/api/tickets", async (req, res) => {
 // Ver un ticket especifico
 app.get("/api/tickets/:id", async (req, res) => {
   try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "ID de ticket invalido" });
+    }
     const db = await getDb();
     const ticket = await db
       .collection("tickets")
@@ -227,6 +230,14 @@ app.post("/api/tickets", async (req, res) => {
 
     if (!titulo || !descripcion || !email) {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    // Validaciones basicas del lado del servidor
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ error: "El correo no tiene un formato valido" });
+    }
+    if (titulo.length > 200 || descripcion.length > 2000) {
+      return res.status(400).json({ error: "El titulo o la descripcion son demasiado largos" });
     }
 
     const db = await getDb();
@@ -319,7 +330,7 @@ app.post("/api/tickets", async (req, res) => {
         .updateOne({ _id: ticket._id }, { $set: cambios });
       Object.assign(ticket, cambios);
 
-      // 5. Guardar log de lo que hizo el agente (auditoria)
+      // 6. Guardar log de lo que hizo el agente (auditoria)
       await db.collection("logs").insertOne({
         ticket_id: ticket._id,
         accion: "triage",
@@ -350,6 +361,9 @@ app.post("/api/tickets", async (req, res) => {
 // una clave que viaja en el header x-admin-key
 // ------------------------------------------------------------
 function esAdmin(req) {
+  // Si la clave no esta configurada en el servidor, se niega todo.
+  // Evita que la comparacion undefined === undefined deje pasar a cualquiera.
+  if (!process.env.ADMIN_KEY) return false;
   return req.headers["x-admin-key"] === process.env.ADMIN_KEY;
 }
 
@@ -358,6 +372,9 @@ app.put("/api/tickets/:id", async (req, res) => {
   try {
     if (!esAdmin(req)) {
       return res.status(401).json({ error: "Clave de administrador incorrecta" });
+    }
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "ID de ticket invalido" });
     }
     const db = await getDb();
     const { estado } = req.body;
@@ -375,6 +392,9 @@ app.delete("/api/tickets/:id", async (req, res) => {
   try {
     if (!esAdmin(req)) {
       return res.status(401).json({ error: "Clave de administrador incorrecta" });
+    }
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "ID de ticket invalido" });
     }
     const db = await getDb();
     await db.collection("tickets").deleteOne({ _id: new ObjectId(req.params.id) });
